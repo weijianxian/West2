@@ -55,8 +55,8 @@ weijianxian
 │ Pokemon.py     # Pokemon类
 │ PokemonType.py # Pokemon属性
 │ readme.md      # 项目介绍
-│ Skills.py      # 技能实现 (WIP)
-│ Status.py      # 宝可梦状态实现(WIP)
+│ Skills.py      # 技能实现
+│ Status.py      # 宝可梦状态实现
 │
 ├─utils
 │ │ __init__.py  # 重写 print input
