@@ -1,4 +1,5 @@
 import asyncio
+import time
 
 import httpx
 from bs4 import BeautifulSoup as bs
@@ -105,8 +106,7 @@ class File:
 async def main():
     page_list = [Pages(str(i)) for i in range(0, 195)]
 
-    get_notifys_tasks = [page.get_notifys() for page in page_list]
-    await atqdm.gather(*get_notifys_tasks, desc="异步获取通知")
+    await atqdm.gather(*[page.get_notifys() for page in page_list], desc="异步获取通知")
 
     notify_list = [notify for page in page_list for notify in page.notifys]
     get_files_tasks = [notify.get_file() for notify in notify_list]
@@ -118,6 +118,7 @@ async def main():
         start = i * chunk_size
         end = (i + 1) * chunk_size
         await atqdm.gather(*get_files_tasks[start:end], desc=f"获取文件第{i+1:^3}块")
+        time.sleep(1)
 
     with open("notification.csv", "w", encoding="utf-8") as f:
         for notify in notify_list:
