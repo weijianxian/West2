@@ -40,20 +40,51 @@ class Question:
 
 
 class Zhihu:
+    is_login = False
 
-    def __init__(
-        self,
-        driver: Edge,
-        cookies: list = None,
-    ):
+    def __init__(self, driver: Edge):
         self.driver = driver
-        # 添加cookies
 
-        driver.get("https://www.zhihu.com/")
+    def login(self, cookies: list = None):
+        print("正在登录")
+
+        self.driver.get("http://www.zhihu.com/signin")
+        sleep(5)
+
+        # 如果传入cookies则直接登录
         if cookies:
-            for item in cookies:
-                self.driver.add_cookie(item)
+            print("通过传入的cookies登录")
+            for cookie in cookies:
+                self.driver.add_cookie(cookie)
             self.driver.refresh()
+            self.is_login = True
+            return
+
+        # 未传入则检测本地cookie文件
+        if os.path.exists("cookies"):
+            print("通过本地cookies登录")
+            cookies = load(open("cookies"))
+            for cookie in cookies:
+                self.driver.add_cookie(cookie)
+            self.driver.refresh()
+            self.is_login = True
+            return
+
+        # 未检测到cookie文件则手动登录
+        print(f"{'='*20}\n请登录\n{'='*20}")
+        while self.driver.current_url != "https://www.zhihu.com/":
+            sleep(1)
+        # 保存cookies
+        dump(
+            [
+                {"name": cookie["name"], "value": cookie["value"]}
+                for cookie in self.driver.get_cookies()
+            ],
+            open("cookies", "w"),
+        )
+        self.driver.refresh()
+        self.is_login = True
+        return True
 
     def get_hot(self) -> list[Question]:
         self.driver.get("https://www.zhihu.com/hot")
@@ -103,22 +134,8 @@ class Zhihu:
 def main():
     driver = Edge()
 
-    # 如果没有cookies文件则登录
-    if not os.path.exists("cookies"):
-        while driver.current_url != "https://www.zhihu.com/":
-            print("请登录")
-            sleep(1)
-        dump(
-            [
-                {"name": cookie["name"], "value": cookie["value"]}
-                for cookie in driver.get_cookies()
-            ],
-            open("cookies", "w"),
-        )
-        print(f"{'='*20}\n登录成功\n{'='*20}")
-
-    # 初始化知乎
-    zhihu = Zhihu(driver, load(open("cookies")))
+    zhihu = Zhihu(driver)
+    zhihu.login()
 
     # 获取热榜问题
     hot_question_list = zhihu.get_topic_top_question(
