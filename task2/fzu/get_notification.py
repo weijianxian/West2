@@ -50,11 +50,9 @@ class Notify:
     @property
     def csv(self):
         if self.files:
-            return f"{self.time},{self.organze},{self.title},{self.link}," + ",".join(
-                [i.csv for i in self.files]
-            )
+            return f"{self.time},{self.organze},{self.title},{self.link},{sum([file.times for file in self.files])}"
         else:
-            return f"{self.time},{self.organze},{self.title},{self.link},"
+            return f"{self.time},{self.organze},{self.title},{self.link},0"
 
     async def get_file(self):
         try:
@@ -92,7 +90,7 @@ class File:
         self,
         name=None,
         download_link=None,
-        download_times=None,
+        download_times=0,
     ):
         self.name = name
         self.link = download_link
@@ -106,7 +104,11 @@ class File:
 async def main():
     page_list = [Pages(str(i)) for i in range(0, 195)]
 
-    await atqdm.gather(*[page.get_notifys() for page in page_list], desc="异步获取通知")
+    await atqdm.gather(
+        *[page.get_notifys() for page in page_list],
+        desc="获取通知",
+        position=0,
+    )
 
     notify_list = [notify for page in page_list for notify in page.notifys]
     get_files_tasks = [notify.get_file() for notify in notify_list]
@@ -114,10 +116,15 @@ async def main():
     # 分块执行任务
     chunk_size = 200
     all_chunks = len(notify_list) // chunk_size + 1
-    for i in range(all_chunks):
+    for i in tqdm(range(all_chunks), desc="获取文件", position=0, leave=False):
         start = i * chunk_size
         end = (i + 1) * chunk_size
-        await atqdm.gather(*get_files_tasks[start:end], desc=f"获取文件第{i+1:^3}块")
+        await atqdm.gather(
+            *get_files_tasks[start:end],
+            desc=f"第{i+1:<2}块",
+            position=1,
+        )
+
         time.sleep(1)
 
     with open("notification.csv", "w", encoding="utf-8") as f:
