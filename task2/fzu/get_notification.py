@@ -1,5 +1,6 @@
 import asyncio
 import time
+from urllib.parse import parse_qs, urlparse
 
 import httpx
 from bs4 import BeautifulSoup as bs
@@ -65,14 +66,16 @@ class Notify:
 
                 for file_tag in file_tags:
                     file_name = file_tag.find("a").text.strip().replace("附件：", "")
-
                     file_link = "https://jwch.fzu.edu.cn" + file_tag.find("a")["href"]
+
+                    query = parse_qs(urlparse(file_link).query)
+                    print(query)
                     # 获取下载次数
                     resp = await client.get(
                         f"https://jwch.fzu.edu.cn/system/resource/code/news/click/clicktimes.jsp",
                         params={
-                            "wbnewsid": file_link.split("wbfileid=")[1],
-                            "owner": file_link.split("owner=")[1].split("&")[0],
+                            "wbnewsid": query["wbfileid"][0],
+                            "owner": query["owner"][0],
                             "type": "wbnewsfile",
                             "randomid": "nattach",
                         },
@@ -102,7 +105,7 @@ class File:
 
 
 async def main():
-    page_list = [Pages(str(i)) for i in range(0, 195)]
+    page_list = [Pages(str(i)) for i in range(0, int(input("请输入要爬取的页数: ")))]
 
     await atqdm.gather(
         *[page.get_notifys() for page in page_list],
@@ -116,7 +119,13 @@ async def main():
     # 分块执行任务
     chunk_size = 200
     all_chunks = len(notify_list) // chunk_size + 1
-    for i in tqdm(range(all_chunks), desc="获取文件", position=0, leave=False):
+    for i in tqdm(
+        range(all_chunks),
+        desc="获取下载次数",
+        position=0,
+        leave=False,
+        colour="green",
+    ):
         start = i * chunk_size
         end = (i + 1) * chunk_size
         await atqdm.gather(
@@ -128,6 +137,7 @@ async def main():
         time.sleep(1)
 
     with open("notification.csv", "w", encoding="utf-8") as f:
+        f.write("时间,发布机构,标题,链接,下载次数\n")
         for notify in notify_list:
             f.write(notify.csv + "\n")
 
