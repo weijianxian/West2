@@ -177,8 +177,12 @@ class Zhihu:
             # root > div > div.Unhuman > section > p.Unhuman-tip
             if driver.find_element(By.CSS_SELECTOR, "div.Unhuman"):
                 print("检测到机器人，等待中, 请手动验证")
-                while driver.current_url != question.url:
-                    sleep(1)
+
+                # 等待验证通过
+                while driver.find_element(By.CSS_SELECTOR, "div.Unhuman"):
+                    sleep(2)
+                # 重新获取问题
+                driver.get(question.url)
 
             # 滚动
             self.scroll_page(scroll_times)
