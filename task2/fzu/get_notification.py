@@ -69,7 +69,6 @@ class Notify:
                     file_link = "https://jwch.fzu.edu.cn" + file_tag.find("a")["href"]
 
                     query = parse_qs(urlparse(file_link).query)
-                    print(query)
                     # 获取下载次数
                     resp = await client.get(
                         f"https://jwch.fzu.edu.cn/system/resource/code/news/click/clicktimes.jsp",
