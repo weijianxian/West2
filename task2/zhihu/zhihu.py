@@ -19,7 +19,8 @@ class Answer:
         self.content = content
         self.raw_content = content.get_attribute("outerHTML")
 
-        print(self.raw_content)
+        # 去除换行符
+        self.raw_content.replace("\n", "")
 
     def __str__(self):
         return f"{self.id}"
@@ -138,11 +139,7 @@ class Zhihu:
         self.driver.get(url)
 
         # 滚动
-        for _ in range(scroll_times):
-            sleep(2)
-            self.driver.execute_script(
-                "window.scrollTo(0, document.body.scrollHeight);"
-            )
+        self.scroll_page(scroll_times)
 
         sleep(5)
         questions_list = self.driver.find_elements(By.CLASS_NAME, "TopicFeedItem")
@@ -170,33 +167,55 @@ class Zhihu:
         :param scroll_times: 滚动次数
         :return: 回答列表
         """
+
         print(f"正在获取问题：{question}")
         driver = self.driver
-        driver.get(question.url)
 
-        # 滚动
-        for _ in range(scroll_times):
-            sleep(2)
-            print("正在滚动答案页面")
-            self.driver.execute_script(
-                "window.scrollTo(0, document.body.scrollHeight);"
+        try:
+            driver.get(question.url)
+
+            # root > div > div.Unhuman > section > p.Unhuman-tip
+            if driver.find_element(By.CSS_SELECTOR, "div.Unhuman"):
+                print("检测到机器人，等待中, 请手动验证")
+                while driver.current_url != question.url:
+                    sleep(1)
+
+            # 滚动
+            self.scroll_page(scroll_times)
+
+            answer_list: list[WebElement] = driver.find_elements(
+                By.CLASS_NAME, "AnswerItem"
             )
 
-        answer_list: list[WebElement] = driver.find_elements(
-            By.CLASS_NAME, "AnswerItem"
-        )
+            # 获取回答
+            for answer_webelement in answer_list:
+                # 获取回答元数据
+                asnwer_meta_data = loads(answer_webelement.get_attribute("data-zop"))
+                answer_id = asnwer_meta_data["itemId"]
 
-        # 获取回答
-        for answer_webelement in answer_list:
-            # 获取回答元数据
-            asnwer_meta_data = loads(answer_webelement.get_attribute("data-zop"))
-            answer_id = asnwer_meta_data["itemId"]
-
-            question.answer_list.append(
-                Answer(
-                    answer_id,
-                    answer_webelement.find_element(By.CLASS_NAME, "RichText"),
+                question.answer_list.append(
+                    Answer(
+                        answer_id,
+                        answer_webelement.find_element(By.CLASS_NAME, "RichText"),
+                    )
                 )
+
+                question.answer_list = list(set(question.answer_list))
+            return question.answer_list
+        except Exception as e:
+            print(f"获取问题{question}失败，重试中")
+
+    def scroll_page(self, times: int = 5):
+        """
+        滚动页面
+        :param times: 滚动次数
+        :return: None
+        """
+        for time in range(times):
+            sleep(2)
+            print(f"正在滚动第 {time+1}/{times} 次")
+            self.driver.execute_script(
+                "window.scrollTo(0, document.body.scrollHeight - 10);"
             )
 
 
@@ -209,6 +228,7 @@ def main():
 
     client = Zhihu(driver=Edge(options=options))
 
+    # 禁用webdriver检测
     client.driver.execute_cdp_cmd(
         "Page.addScriptToEvaluateOnNewDocument",
         {
@@ -221,11 +241,19 @@ def main():
     )
     client.login()
 
-    test_question = Question("test", "https://www.zhihu.com/question/26742539")
+    # 获取知乎热榜问题
+    hot_question_list = client.get_hot()
 
-    client.get_answer(test_question)
+    print(f"获取到{len(hot_question_list)}个热榜问题")
+    for question in hot_question_list:
+        client.get_answer(question)
 
-    input("回车退出")
+    with open("hot_question.csv", "w", encoding="utf-8") as f:
+        f.write("title,content\n")
+        for question in hot_question_list:
+            f.write(
+                f"{question.title},{','.join(item.raw_content for item in question.answer_list)}\n"
+            )
 
 
 if __name__ == "__main__":
