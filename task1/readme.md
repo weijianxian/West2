@@ -46,8 +46,8 @@ graph TD;
 
 ### 目录结构
 
-```bash
-weijianxian
+```
+project
 │ Basic.py       # 基础类
 │ Game.py        # 游戏类
 │ main.py        # 入口

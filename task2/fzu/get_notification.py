@@ -23,8 +23,10 @@ class Pages:
     async def get_notifys(self):
         async with httpx.AsyncClient() as client:
             response = await client.get(self.link)
+
         soup: bs = bs(response.text, "html.parser")
         items: list[Tag] = soup.find_all("ul", class_="list-gl")[0].find_all("li")
+
         for i in items:
             time = i.find("span").text.strip()
             title = i.find("a").text.strip()
